@@ -1,0 +1,87 @@
+[gd_scene load_steps=5 format=3 uid="uid://b2glnx5gmnnnv"]
+
+[sub_resource type="GDScript" id="GDScript_2yrpt"]
+script/source = "extends CharacterBody2D
+
+var health = 25
+const SPEED = 300.0
+const JUMP_VELOCITY = -400.0
+@onready var fire_ball = preload(\"res://fire_ball.tscn\")
+# Get the gravity from the project settings to be synced with RigidBody nodes.
+var gravity = ProjectSettings.get_setting(\"physics/2d/default_gravity\")
+
+func _enter_tree():
+	set_multiplayer_authority(str(name).to_int())
+
+func _ready():
+	if not is_multiplayer_authority(): return
+
+func _physics_process(delta):
+	$RootSpawn.look_at(get_global_mouse_position())
+	if not is_multiplayer_authority(): return
+	# Add the gravity.
+	if not is_on_floor():
+		velocity.y += gravity * delta
+	if Input.is_action_just_pressed(\"normal attack\"):
+		var fire_projectile = fire_ball.instantiate()
+		add_child(fire_projectile)
+		fire_projectile.global_position = $RootSpawn/FireBallSpawn.global_position
+		
+		
+	if health <= 0:
+		queue_free()
+	# Handle Jump.
+	if Input.is_action_just_pressed(\"ui_accept\") and is_on_floor():
+		velocity.y = JUMP_VELOCITY
+
+	# Get the input direction and handle the movement/deceleration.
+	# As good practice, you should replace UI actions with custom gameplay actions.
+	var direction = Input.get_axis(\"left\", \"right\")
+	if direction:
+		velocity.x = direction * SPEED
+	else:
+		velocity.x = move_toward(velocity.x, 0, SPEED)
+
+	move_and_slide()
+"
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_w3nws"]
+height = 1.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_uxsyd"]
+radius = 0.448979
+height = 1.87612
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_nnh6p"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/sync = true
+properties/1/path = NodePath(".:scale")
+properties/1/spawn = true
+properties/1/sync = true
+properties/2/path = NodePath(".:rotation")
+properties/2/spawn = true
+properties/2/sync = true
+
+[node name="MeshInstance2D" type="CharacterBody2D" groups=["Player"]]
+position = Vector2(579, 302)
+scale = Vector2(49.0001, 102.75)
+script = SubResource("GDScript_2yrpt")
+
+[node name="MeshInstance2D" type="MeshInstance2D" parent="."]
+position = Vector2(0, -0.0368331)
+mesh = SubResource("CapsuleMesh_w3nws")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -0.0291972)
+scale = Vector2(1, 0.498)
+shape = SubResource("CapsuleShape2D_uxsyd")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_nnh6p")
+
+[node name="RootSpawn" type="Marker2D" parent="."]
+position = Vector2(2.62633e-07, -1.86265e-08)
+
+[node name="FireBallSpawn" type="Node2D" parent="RootSpawn"]
+position = Vector2(1.44898, -1.86265e-08)
